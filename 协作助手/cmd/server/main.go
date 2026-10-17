@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"gin-mall/internal/account"
+	"gin-mall/internal/cart"
 	"gin-mall/internal/catalog"
 	"gin-mall/internal/config"
 	"gin-mall/internal/httpapi"
@@ -64,13 +65,17 @@ func run(configPath string, logger *slog.Logger) error {
 	if err := catalog.EnsureSchema(ctx, db); err != nil {
 		return err
 	}
+	if err := cart.EnsureSchema(ctx, db); err != nil {
+		return err
+	}
 	accounts := account.NewService(db, redisClient, cfg.Session.IdleTTL, cfg.Session.MaxLifetime, cfg.Admin.UserID)
 	catalogs := catalog.NewService(db)
+	carts := cart.NewService(db)
 
 	address := net.JoinHostPort("127.0.0.1", strconv.Itoa(cfg.Server.Port))
 	server := &http.Server{
 		Addr:              address,
-		Handler:           httpapi.NewRouter(catalogs, accounts, cfg.Session.CookieSecure, logger),
+		Handler:           httpapi.NewRouter(catalogs, accounts, carts, cfg.Session.CookieSecure, logger),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	stop, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

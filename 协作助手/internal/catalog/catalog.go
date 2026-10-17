@@ -61,7 +61,8 @@ type Product struct {
 	SaleMessage string    `json:"sale_message" gorm:"-"`
 }
 
-func (p *Product) availability() {
+// RefreshAvailability 根据商品当前状态和库存计算展示信息，不写数据库。
+func (p *Product) RefreshAvailability() {
 	p.SoldOut = p.Stock == 0
 	p.Purchasable = p.Status == OnSale && !p.SoldOut
 	switch {
@@ -212,7 +213,7 @@ func (s *Service) CreateProduct(ctx context.Context, userID int64, p Product) (P
 	}
 	p.CreatedAt, p.UpdatedAt = time.Now().UTC(), time.Now().UTC()
 	err = db.Create(&p).Error
-	p.availability()
+	p.RefreshAvailability()
 	return p, err
 }
 
@@ -222,7 +223,7 @@ func (s *Service) Product(ctx context.Context, id int64) (Product, error) {
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return p, ErrProductNotFound
 	}
-	p.availability()
+	p.RefreshAvailability()
 	return p, err
 }
 
@@ -243,7 +244,7 @@ func findOwnProduct(db *gorm.DB, shopID, id int64, lock bool) (Product, error) {
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return p, ErrProductNotFound
 	}
-	p.availability()
+	p.RefreshAvailability()
 	return p, err
 }
 
@@ -306,7 +307,7 @@ func (s *Service) changeProduct(ctx context.Context, userID, id int64, change fu
 			"category_id": p.CategoryID, "status": p.Status, "updated_at": p.UpdatedAt,
 		}).Error
 	})
-	p.availability()
+	p.RefreshAvailability()
 	return p, err
 }
 
@@ -338,7 +339,7 @@ func (s *Service) Products(ctx context.Context, f Filter, ownerID *int64) (Page,
 	}
 	err := query.Order("created_at DESC, id DESC").Limit(f.PageSize).Offset((f.Page - 1) * f.PageSize).Find(&result.Items).Error
 	for i := range result.Items {
-		result.Items[i].availability()
+		result.Items[i].RefreshAvailability()
 	}
 	return result, err
 }

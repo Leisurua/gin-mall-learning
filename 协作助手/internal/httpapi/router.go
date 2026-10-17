@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"gin-mall/internal/account"
+	"gin-mall/internal/cart"
 	"gin-mall/internal/catalog"
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter(catalogs *catalog.Service, accounts *account.Service, cookieSecure bool, logger *slog.Logger) *gin.Engine {
+func NewRouter(catalogs *catalog.Service, accounts *account.Service, carts *cart.Service, cookieSecure bool, logger *slog.Logger) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.HandleMethodNotAllowed = true
@@ -29,6 +30,12 @@ func NewRouter(catalogs *catalog.Service, accounts *account.Service, cookieSecur
 	auth.POST("/register", accountHTTP.register)
 	auth.POST("/login", accountHTTP.login)
 	api.GET("/users/me", accountHTTP.requireLogin, accountHTTP.me)
+	cartHTTP := &cartHandler{service: carts, logger: logger}
+	myCart := api.Group("/cart/items", accountHTTP.requireLogin)
+	myCart.GET("", cartHTTP.list)
+	myCart.POST("", cartHTTP.add)
+	myCart.PATCH("/:id", cartHTTP.update)
+	myCart.DELETE("/:id", cartHTTP.remove)
 	api.POST("/shops", accountHTTP.requireLogin, handler.createShop)
 	shop := api.Group("/shops/me", accountHTTP.requireLogin)
 	shop.GET("", handler.myShop)
