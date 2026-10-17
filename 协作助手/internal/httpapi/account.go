@@ -107,6 +107,16 @@ func (h *accountHandler) failed(c *gin.Context, err error) {
 		failure(c, http.StatusBadRequest, "INVALID_INPUT", validation.Message)
 	case errors.Is(err, account.ErrDuplicateAccount):
 		failure(c, http.StatusConflict, "ACCOUNT_EXISTS", account.ErrDuplicateAccount.Error())
+	case errors.Is(err, account.ErrForbidden):
+		failure(c, http.StatusForbidden, "FORBIDDEN", err.Error())
+	case errors.Is(err, account.ErrApplicationPending):
+		failure(c, http.StatusConflict, "APPLICATION_PENDING", err.Error())
+	case errors.Is(err, account.ErrAlreadySeller):
+		failure(c, http.StatusConflict, "ALREADY_SELLER", err.Error())
+	case errors.Is(err, account.ErrApplicationReviewed):
+		failure(c, http.StatusConflict, "APPLICATION_ALREADY_REVIEWED", err.Error())
+	case errors.Is(err, account.ErrApplicationNotFound):
+		failure(c, http.StatusNotFound, "APPLICATION_NOT_FOUND", err.Error())
 	case errors.Is(err, account.ErrInvalidCredentials):
 		failure(c, http.StatusUnauthorized, "INVALID_CREDENTIALS", account.ErrInvalidCredentials.Error())
 	case errors.Is(err, account.ErrNotAuthenticated):

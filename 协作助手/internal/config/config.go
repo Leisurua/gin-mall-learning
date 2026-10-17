@@ -13,6 +13,11 @@ type Config struct {
 	MySQL   MySQLConfig   `yaml:"mysql"`
 	Redis   RedisConfig   `yaml:"redis"`
 	Session SessionConfig `yaml:"session"`
+	Admin   AdminConfig   `yaml:"admin"`
+}
+
+type AdminConfig struct {
+	UserID int64 `yaml:"user_id"`
 }
 
 type RedisConfig struct {
@@ -64,6 +69,9 @@ func Load(path string) (Config, error) {
 	}
 	if cfg.Redis.Address == "" || cfg.Redis.DB < 0 {
 		return cfg, fmt.Errorf("redis.address 不能为空，redis.db 不能为负数")
+	}
+	if cfg.Admin.UserID < 0 || cfg.Admin.UserID > 2147483647 {
+		return cfg, fmt.Errorf("admin.user_id 必须为 0 或有效的用户编号")
 	}
 	if cfg.Session.IdleTTL < time.Second || cfg.Session.MaxLifetime < time.Second ||
 		cfg.Session.IdleTTL%time.Second != 0 || cfg.Session.MaxLifetime%time.Second != 0 {

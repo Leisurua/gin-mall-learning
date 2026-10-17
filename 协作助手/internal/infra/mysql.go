@@ -23,6 +23,7 @@ func OpenMySQL(ctx context.Context, cfg config.MySQLConfig) (*gorm.DB, error) {
 	driverConfig.User = cfg.User
 	driverConfig.Passwd = cfg.Password
 	driverConfig.DBName = cfg.Database
+	driverConfig.ParseTime = true
 	driverConfig.Params = map[string]string{"charset": "utf8mb4"}
 	driverConfig.Timeout = 3 * time.Second
 

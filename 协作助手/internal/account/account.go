@@ -33,6 +33,7 @@ type user struct {
 	Username     string
 	Email        string
 	PasswordHash string `json:"-"`
+	Role         string
 }
 
 func (user) TableName() string { return "users" }
@@ -45,25 +46,34 @@ type Profile struct {
 }
 
 type Service struct {
-	db       *gorm.DB
-	sessions *sessionStore
+	db          *gorm.DB
+	sessions    *sessionStore
+	adminUserID int64
 }
 
 //go:embed schema.sql
 var schemaSQL string
 
 func EnsureSchema(ctx context.Context, db *gorm.DB) error {
-	// 只创建尚不存在的用户表，已有商品表保持原有结构。
+	// 用户与申请表由 account 管理；商品相关表由 catalog 管理。
 	if err := db.WithContext(ctx).Exec(schemaSQL).Error; err != nil {
 		return fmt.Errorf("创建用户表: %w", err)
+	}
+	if !db.Migrator().HasColumn(&user{}, "role") {
+		if err := db.WithContext(ctx).Exec("ALTER TABLE users ADD COLUMN role ENUM('buyer', 'seller', 'admin') NOT NULL DEFAULT 'buyer'").Error; err != nil {
+			return fmt.Errorf("增加账号角色: %w", err)
+		}
+	}
+	if err := db.WithContext(ctx).Exec(applicationSchemaSQL).Error; err != nil {
+		return fmt.Errorf("创建卖家申请表: %w", err)
 	}
 	return nil
 }
 
-func NewService(db *gorm.DB, client *redis.Client, idle, maximum time.Duration) *Service {
+func NewService(db *gorm.DB, client *redis.Client, idle, maximum time.Duration, adminUserID int64) *Service {
 	return &Service{db: db, sessions: &sessionStore{
 		client: client, idle: idle, maximum: maximum,
-	}}
+	}, adminUserID: adminUserID}
 }
 
 func (s *Service) Register(ctx context.Context, username, email, password string) (Profile, error) {
@@ -81,7 +91,7 @@ func (s *Service) Register(ctx context.Context, username, email, password string
 	if err != nil {
 		return Profile{}, fmt.Errorf("生成密码哈希: %w", err)
 	}
-	u := user{Username: username, Email: email, PasswordHash: string(hash)}
+	u := user{Username: username, Email: email, PasswordHash: string(hash), Role: RoleBuyer}
 	// 唯一约束也参与查重，同时到达的注册请求不能绕过它。
 	if err := s.db.WithContext(ctx).Create(&u).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
